@@ -1,7 +1,6 @@
 import os
 
 import pandas as pd
-
 from pathlib import Path
 
 from auxiliary.utils_minigng_trucks import setup_pandas_options, save_parquet, optimize_dtypes
@@ -95,7 +94,6 @@ idles_events = idles.dropna(subset=['case'])[['asset_id', 'mdm_object_name', 'ev
 idles_df_optimized = optimize_dtypes(idles_events)
 save_parquet(idles_df_optimized, Path('dataset/ml_datasets/_by_Hack/idles.parquet'))
 print(idles_df_optimized)
-exit()
 
 
 # Загрузка данных масляной лаборатории

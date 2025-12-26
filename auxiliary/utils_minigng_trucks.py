@@ -146,17 +146,19 @@ def merge_events_with_windows(df_win, events):
     return df_win
 
 # 7) Таргет 7..30 дней, фильтрация 0..7 дней
-def process_target(df_win):
+def process_target(df_win, empty_window=7, prediction_window=30):
     df_win["days_to_event"] = (df_win["event_dt"] - df_win["timestamp"]).dt.total_seconds() / 86400.0
-    df_win["target_7_30"] = ((df_win["days_to_event"] >= 7) & (df_win["days_to_event"] <= 30)).astype("int8")
-    df_win = df_win[~((df_win["days_to_event"] >= 0) & (df_win["days_to_event"] < 7))]
+    df_win["target"] = (
+            (df_win["days_to_event"] >= empty_window) & (df_win["days_to_event"] <= prediction_window)
+    ).astype("int8")
+    df_win = df_win[~((df_win["days_to_event"] >= 0) & (df_win["days_to_event"] < empty_window))]
     return df_win
 
 # 8) Подготовка X и y
 def prepare_X_y(df_win):
     df_win = df_win.set_index(["asset_id", "mdm_object_name", "timestamp"]).sort_index()
-    y = df_win["target_7_30"].astype("int8")
-    X = df_win.drop(columns=["target_7_30", "event_dt", "days_to_event"], errors="ignore")
+    y = df_win[f"target"].astype("int8")
+    X = df_win.drop(columns=["target", "event_dt", "days_to_event"], errors="ignore")
     return X, y
 
 
@@ -278,14 +280,14 @@ def calculate_event_level_precision(pred, threshold=0.6):
         .reset_index()
     )
 
-    # 4. Добавляем столбец target_7_30 в event_alerts
-    event_alerts = event_alerts.merge(pred[["asset_id", "event_dt", "target_7_30"]], on=["asset_id", "event_dt"],
+    # 4. Добавляем столбец target в event_alerts
+    event_alerts = event_alerts.merge(pred[["asset_id", "event_dt", "target"]], on=["asset_id", "event_dt"],
                                       how="left")
 
     # 5. Вычисляем количество истинных положительных, ложных положительных и ложных отрицательных
-    true_positive = event_alerts[(event_alerts["alert"] == 1) & (event_alerts["target_7_30"] == 1)]
-    false_positive = event_alerts[(event_alerts["alert"] == 1) & (event_alerts["target_7_30"] == 0)]
-    false_negative = event_alerts[(event_alerts["alert"] == 0) & (event_alerts["target_7_30"] == 1)]
+    true_positive = event_alerts[(event_alerts["alert"] == 1) & (event_alerts["target"] == 1)]
+    false_positive = event_alerts[(event_alerts["alert"] == 1) & (event_alerts["target"] == 0)]
+    false_negative = event_alerts[(event_alerts["alert"] == 0) & (event_alerts["target"] == 1)]
 
     # 6. Вычисляем precision на уровне событий
     precision_event_level = len(true_positive) / (len(true_positive) + len(false_positive)) \
@@ -313,7 +315,7 @@ def calculate_early_warning(df_win, proba, threshold=0.6):
 
     # Собираем таблицу с предсказаниями на уровне окон
     pred = (
-        df_win.reset_index()[["asset_id", "mdm_object_name", "timestamp", "event_dt", "days_to_event", "target_7_30"]]
+        df_win.reset_index()[["asset_id", "mdm_object_name", "timestamp", "event_dt", "days_to_event", "target"]]
         .copy()
     )
 
@@ -336,7 +338,7 @@ def calculate_early_warning(df_win, proba, threshold=0.6):
 
     # Список всех “реальных” событий в этом горизонте (чтобы увидеть пропуски)
     all_events = (
-        pred_h[pred_h["target_7_30"] == 1][["asset_id", "event_dt"]]
+        pred_h[pred_h["target"] == 1][["asset_id", "event_dt"]]
         .drop_duplicates()
     )
 

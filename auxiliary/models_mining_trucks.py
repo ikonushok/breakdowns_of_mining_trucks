@@ -2,6 +2,8 @@ from sklearn.ensemble import IsolationForest
 import lightgbm as lgb
 from sklearn.metrics import roc_auc_score, average_precision_score, precision_recall_curve
 
+from auxiliary.utils_minigng_trucks import replace_nan_with_median, handle_nan_in_data
+
 
 def train_model_with_anomaly_detection(X, y, anomaly_contamination=0.02, threshold=0.6, random_state=42):
     """
@@ -28,8 +30,19 @@ def train_model_with_anomaly_detection(X, y, anomaly_contamination=0.02, thresho
     X_model['anomaly_score'] = X['anomaly_score']
 
     # 4.2 Классификация риска (supervised)
-    model = lgb.LGBMClassifier(n_estimators=500, learning_rate=0.03, num_leaves=64, class_weight='balanced',
+    model = lgb.LGBMClassifier(n_estimators=500,
+                               learning_rate=0.03,
+                               num_leaves=64,
+                               class_weight='balanced',
                                nan_as_zero=True, random_state=random_state)
+
+    # Проверяем на NaN в X_model и y
+    # X_model, y = replace_nan_with_median(X_model, y)
+    # X_model, y = handle_nan_in_data(X_model, y)
+    # model = lgb.LGBMClassifier(n_estimators=500,
+    #                            learning_rate=0.03,
+    #                            num_leaves=64,
+    #                            class_weight='balanced')
 
     # Обучаем модель
     model.fit(X_model, y)

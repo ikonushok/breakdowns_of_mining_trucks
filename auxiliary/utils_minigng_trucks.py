@@ -146,10 +146,10 @@ def merge_events_with_windows(df_win, events):
     return df_win
 
 # 7) Таргет 7..30 дней, фильтрация 0..7 дней
-def process_target(df_win, empty_window=7, prediction_window=30):
+def process_target(df_win, empty_window=7, target_window=30):
     df_win["days_to_event"] = (df_win["event_dt"] - df_win["timestamp"]).dt.total_seconds() / 86400.0
     df_win["target"] = (
-            (df_win["days_to_event"] >= empty_window) & (df_win["days_to_event"] <= prediction_window)
+            (df_win["days_to_event"] >= empty_window) & (df_win["days_to_event"] <= target_window)
     ).astype("int8")
     df_win = df_win[~((df_win["days_to_event"] >= 0) & (df_win["days_to_event"] < empty_window))]
     return df_win

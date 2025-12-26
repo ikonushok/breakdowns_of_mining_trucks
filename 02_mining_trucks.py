@@ -44,22 +44,18 @@ print(f'\ntelemetry_df:\n{telemetry_df}')
 
 # 2. Подготовка телеметрии
 tele = prepare_telemetry(telemetry_df)
-# Агрегация по окнам
-base_agg = aggregate_window_data(tele, window="60min")
-# Агрегация топливных признаков
-fuel_agg = aggregate_fuel_features(tele)
-# Объединение оконных признаков
-df_win = merge_window_features(base_agg, fuel_agg)
-# Подготовка событий
-events = prepare_events(idles_df)
-# Слияние событий с окнами
-df_win = merge_events_with_windows(df_win, events)
-# Таргет 7..30 дней, фильтрация 0..7 дней
-empty_window=7
-prediction_window=14
+base_agg = aggregate_window_data(tele, window="720min")  # Агрегация по окнам (1d = 1440min)
+fuel_agg = aggregate_fuel_features(tele)  # Агрегация топливных признаков
+df_win = merge_window_features(base_agg, fuel_agg)  # Объединение оконных признаков
+events = prepare_events(idles_df)  # Подготовка событий
+df_win = merge_events_with_windows(df_win, events)  # Слияние событий с окнами
+
+# Таргет (prediction_window) 7..30 дней, фильтрация (empty_window) 0..7 дней
+empty_window = 7
+target_window = 30
 df_win = process_target(df_win,
                         empty_window=empty_window,
-                        prediction_window=prediction_window)
+                        target_window=target_window)
 # Подготовка X и y
 X, y = prepare_X_y(df_win)
 
@@ -71,8 +67,10 @@ print(f'duplicated columns:\t{X.columns[X.columns.duplicated()].unique()}\n')
 
 
 # 3. Model
-# Предполагаем, что у тебя есть X и y как входные данные
-model, proba = train_model_with_anomaly_detection(X, y, anomaly_contamination=0.02, threshold=0.6)
+threshold = 0.6
+model, proba = train_model_with_anomaly_detection(X, y,
+                                                  anomaly_contamination=0.02,
+                                                  threshold=threshold)
 
 # 4. Собираем таблицу с предсказаниями на уровне окон
 pred = (df_win.reset_index()[
@@ -81,11 +79,9 @@ pred["proba"] = proba  # proba должен быть в том же порядк
 
 
 # 5. Ранность предупреждения (first alert lead time)
-threshold = 0.6  # Порог для алерта
 report = calculate_early_warning(df_win, proba, threshold)
-
 # Пересчет precision на уровне событий
-precision_event_level = calculate_event_level_precision(pred, threshold=0.6)
+precision_event_level = calculate_event_level_precision(pred, threshold=threshold)
 
 
 # Если хочешь одну “маркетинговую” цифру:
@@ -94,7 +90,7 @@ median_lead = report.loc[report["detected"], "lead_days"].median()
 print(f"mean lead time: {mean_lead:.2f} days")
 print(f"median lead time: {median_lead:.2f} days")
 
-
+exit()
 # 6. SHAP и Локальная объяснимость для одного события
 explain_shap_for_event(X, model, report, pred, threshold=0.6, sample_size=5000, random_state=42, topn=8)
 

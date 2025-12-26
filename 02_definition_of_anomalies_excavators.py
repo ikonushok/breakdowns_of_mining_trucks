@@ -15,7 +15,7 @@ What it does (per your plan):
 """
 
 from auxiliary.anomaly_pipeline import PipelineConfig, run_anomaly_pipeline
-from auxiliary.utils import (
+from auxiliary.utils_excavators import (
     load_and_preprocess_data,
     setup_pandas_options,
     visualize_anomalies,
